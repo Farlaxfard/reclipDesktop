@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ReClip 8K — Media Downloader</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/fonts/fonts.css">
+  <style>
+    :root {
+      --bg: #f4f1eb; --fg: #3a3a38; --accent: #e85d2a; --accent-hover: #d04e1f;
+      --muted: #9c9889; --card: #fff; --card-border: #e2ded6; --success: #2d8a4e;
+      --error: #c43d3d; --radius: 14px; --icon-color: #3a3a38;
+      --shimmer: linear-gradient(90deg, #ebe8e2 25%, #f0ede7 50%, #ebe8e2 75%);
+    }
+
+    body.dark-mode {
+      --bg: #1a1a18; --fg: #f4f1eb; --accent: #e85d2a; --accent-hover: #f07044;
+      --muted: #7c7869; --card: #262624; --card-border: #3a3a38; --success: #3ab167;
+      --error: #e65555; --icon-color: #f4f1eb;
+      --shimmer: linear-gradient(90deg, #2a2a28 25%, #30302e 50%, #2a2a28 75%);
+    }
+
+    body.dev-mode-active {
+      --accent: #2d8a4e; --accent-hover: #3ab167;
+    }
+    body.dark-mode.dev-mode-active {
+      --accent: #3ab167; --accent-hover: #4cd982;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; transition: background-color 0.3s ease, border-color 0.3s ease, color 0.2s ease; }
+    
+    body { font-family: 'DM Mono', monospace; background: var(--bg); color: var(--fg); min-height: 100vh; overflow: hidden; position: relative; }
+    body::after { content: ''; position: fixed; inset: 0; opacity: 0.03; pointer-events: none; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E"); background-size: 128px; }
+
+    #main-wrapper {
+      width: 100%; height: 100vh; overflow-y: auto; overflow-x: hidden;
+      transition: filter 0.6s cubic-bezier(0.4, 0, 0.2, 1), transform 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    body.blurred #main-wrapper { filter: blur(20px); transform: scale(0.92); }
+
+    .page { max-width: 620px; margin: 0 auto; padding: 60px 24px 80px; }
+    .brand { margin-bottom: 48px; }
+    .brand h1 { font-family: 'Instrument Serif', serif; font-size: 4.2rem; font-weight: 400; letter-spacing: -0.03em; line-height: 1; color: var(--fg); cursor: default; user-select: none; transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+    .brand h1.spring-active { transform: scale(0.92); }
+    .brand h1 em { font-style: italic; color: var(--accent); transition: color 0.5s ease; }
+
+    textarea { width: 100%; padding: 18px 20px; border: 1.5px solid var(--card-border); border-radius: var(--radius); background: var(--card); color: var(--fg); font-family: 'DM Mono', monospace; font-size: 0.88rem; outline: none; resize: none; min-height: 56px; transition: border-color 0.25s, box-shadow 0.25s; margin-bottom: 6px; }
+    textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(232, 93, 42, 0.08); }
+    textarea.shake { animation: verticalShake 0.3s cubic-bezier(.36,.07,.19,.97) both; }
+    @keyframes verticalShake { 10%, 90% { transform: translateY(-1px); } 20%, 80% { transform: translateY(2px); } 30%, 50%, 70% { transform: translateY(-3px); } 40%, 60% { transform: translateY(3px); } }
+
+    .controls { display: flex; gap: 10px; margin-bottom: 20px; align-items: center; }
+    .pill-group { display: flex; border: 1.5px solid var(--card-border); border-radius: 10px; overflow: hidden; background: var(--card); position: relative; transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+    
+    @keyframes slideLeft { 0% { transform: translateX(0); } 30% { transform: translateX(-12px); } 100% { transform: translateX(0); } }
+    @keyframes slideRight { 0% { transform: translateX(0); } 30% { transform: translateX(12px); } 100% { transform: translateX(0); } }
+    .pill-group.slide-left { animation: slideLeft 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+    .pill-group.slide-right { animation: slideRight 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+
+    .pill { padding: 9px 18px; font-family: 'DM Mono', monospace; font-size: 0.76rem; border: none; background: transparent; color: var(--muted); cursor: pointer; transition: all 0.2s; letter-spacing: 0.03em; text-transform: uppercase; }
+    .pill.active { background: var(--fg); color: var(--bg); }
+
+    .fetch-btn { flex: 1; padding: 10px 20px; border: none; border-radius: 10px; background: var(--accent); color: #fff; font-family: 'DM Mono', monospace; font-size: 0.82rem; font-weight: 500; cursor: pointer; transition: background 0.2s; letter-spacing: 0.04em; text-transform: uppercase; outline: none; }
+    .fetch-btn:hover { background: var(--accent-hover); }
+    .fetch-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    @keyframes springBounce {
+      0% { transform: scale(1); }
+      30% { transform: scale(0.88); }
+      60% { transform: scale(1.05); }
+      80% { transform: scale(0.98); }
+      100% { transform: scale(1); }
+    }
+    .fetch-btn.bouncing { 
+      animation: springBounce 0.6s cubic-bezier(0.45, 0.05, 0.55, 0.95); 
+    }
+
+    .card { display: flex; gap: 14px; border: 1.5px solid var(--card-border); border-radius: var(--radius); background: var(--card); padding: 14px; margin-bottom: 10px; animation: slideDownBounce 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+    @keyframes slideDownBounce { from { opacity: 0; transform: translateY(-40px); } to { opacity: 1; transform: translateY(0); } }
+    .card-thumb { width: 120px; height: 80px; border-radius: 8px; overflow: hidden; background: var(--card-border); flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: var(--muted); }
+    .card-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .card-thumb.loading { background: var(--shimmer); background-size: 200% 100%; animation: shine 1.5s infinite; }
+    @keyframes shine { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+    .card-body { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; }
+    .card-title { font-family: 'Instrument Serif', serif; font-size: 1.1rem; line-height: 1.2; color: var(--fg); margin-bottom: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .card-meta { font-size: 0.68rem; color: var(--muted); text-transform: uppercase; margin-bottom: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .card-error .card-title { color: var(--error); font-family: 'Instrument Serif', serif; font-size: 1.3rem; }
+
+    .progress-bar-container { width: 100%; height: 6px; background: rgba(0,0,0,0.05); border-radius: 3px; margin-top: 10px; position: relative; }
+    .progress-bar { height: 100%; background: var(--success); width: 0%; border-radius: 3px; transition: width 0.3s ease; box-shadow: 0 0 15px var(--success); position: relative; overflow: hidden; }
+    .progress-bar::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent); animation: shine-fast 2s infinite linear; }
+    @keyframes shine-fast { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+
+    .card-dl-btn { padding: 6px 14px; border: none; border-radius: 7px; background: var(--fg); color: var(--bg); font-family: 'DM Mono', monospace; font-size: 0.7rem; cursor: pointer; transition: all 0.2s; text-transform: uppercase; }
+    .card-dl-btn:hover { background: var(--success); color: #fff; }
+    .card-dl-btn.done { background: var(--success); color: #fff; }
+
+    .wifi-warning {
+      position: fixed; inset: 0; background: var(--bg); color: var(--fg); z-index: 9999;
+      display: none; flex-direction: row; align-items: center; justify-content: center; text-align: left; gap: 40px; padding: 40px;
+      transition: opacity 0.8s ease, transform 1.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), filter 1.2s ease;
+      opacity: 0; transform: scale(0.85); filter: blur(30px); pointer-events: none;
+    }
+    .wifi-warning.active { display: flex; opacity: 1; transform: scale(1); filter: blur(0); pointer-events: all; }
+    .wifi-warning svg { width: 100px; height: 100px; fill: var(--accent); animation: pulse 2s infinite; }
+    @keyframes pulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(0.95); opacity: 0.7; } }
+    .wifi-warning h2 { font-family: 'Instrument Serif', serif; font-size: 3.2rem; margin-bottom: 8px; line-height: 1; }
+    .wifi-warning p { font-size: 1.1rem; color: var(--muted); }
+
+    .settings-trigger { position: fixed; top: 24px; left: 24px; cursor: pointer; opacity: 0.6; z-index: 2000; color: var(--icon-color); transition: transform 0.3s; }
+    .settings-trigger:hover { transform: rotate(45deg); opacity: 1; }
+    
+    .settings-modal { 
+      position: fixed; inset: 0; background: rgba(244, 241, 235, 0.98); z-index: 3000; 
+      display: none; align-items: center; justify-content: center; backdrop-filter: blur(12px);
+      transition: opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1), transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      opacity: 0; transform: scale(1.1) translateY(20px);
+    }
+    body.dark-mode .settings-modal { background: rgba(26, 26, 24, 0.98); }
+    .settings-modal.active { display: flex; opacity: 1; transform: scale(1) translateY(0); }
+    
+    #main-wrapper { transition: filter 0.6s cubic-bezier(0.4, 0, 0.2, 1), transform 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+    body.settings-active #main-wrapper { filter: blur(15px); transform: scale(0.95); }
+    
+    .settings-content { width: 100%; max-width: 440px; padding: 40px; }
+    .settings-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+    /* Restored font-family to DM Mono for settings header */
+    .settings-header h2 { font-family: 'DM Mono', monospace; font-weight: 500; font-size: 2.4rem; letter-spacing: -0.02em; }
+    .close-settings { background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--muted); transition: transform 0.2s; }
+    .close-settings:hover { transform: rotate(90deg); color: var(--fg); }
+
+    .setting-item { margin-bottom: 24px; }
+    .setting-item label { font-size: 0.7rem; text-transform: uppercase; color: var(--muted); display: block; margin-bottom: 8px; letter-spacing: 0.05em; }
+
+    .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; cursor: pointer; inset: 0; background: var(--card-border); border-radius: 24px; transition: .3s; }
+    .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: .3s; }
+    input:checked + .slider { background: var(--accent); }
+    input:checked + .slider:before { transform: translateX(20px); }
+
+    .info-section { margin-top: 30px; border-top: 1.5px solid var(--card-border); padding-top: 20px; font-size: 0.75rem; color: var(--muted); line-height: 1.6; }
+
+    @media (max-width: 500px) { .brand h1 { font-size: 3rem; } .card { flex-direction: column; } .card-thumb { width: 100%; height: 160px; } }
+  </style>
+</head>
+<body class="no-trans">
+  <div id="wifi-warning" class="wifi-warning">
+    <svg viewBox="0 0 24 24"><path d="M23.64 7c-.45-.34-4.93-4-11.64-4-1.5 0-2.89.19-4.15.53l12.45 12.45.34-.34c.45-.34 4.93-4 11.64-4zm-6.6 6.6l-4.5-4.5-4.5-4.5L1.39 1.39 0 2.78l2.35 2.35c-1.35.84-2.35 1.87-2.35 1.87L12 21l3.52-4.4L18 19.1l1.27-1.27 2.72 2.72 1.41-1.41L17.04 13.6z"/></svg>
+    <div class="wifi-warning-text">
+      <h2>Connection Lost</h2>
+      <p>Please check your internet connection.</p>
+    </div>
+  </div>
+
+  <div id="main-wrapper">
+    <div class="settings-trigger" onclick="toggleSettings()"><svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg></div>
+
+    <div id="settings-modal" class="settings-modal">
+      <div class="settings-content">
+        <div class="settings-header"><h2>Settings</h2><button class="close-settings" onclick="toggleSettings()">✕</button></div>
+        <div class="setting-item" style="display:flex;justify-content:space-between;align-items:center">
+          <div><div style="font-size:0.9rem">Dark Mode</div><div style="font-size:0.7rem;color:var(--muted)">Enable dark interface</div></div>
+          <label class="switch"><input type="checkbox" id="dark-toggle" onchange="toggleDarkMode()"><span class="slider"></span></label>
+        </div>
+        <div class="setting-item">
+          <label>SFX Volume</label>
+          <input type="range" id="sfx-volume" min="0" max="1" step="0.1" value="1" onchange="localStorage.setItem('sfx-volume', this.value)" style="width:100%">
+        </div>
+        <div class="setting-item">
+          <label>Download Directory</label>
+          <div style="display:flex;gap:8px"><input type="text" id="dl-dir" readonly style="flex:1;padding:10px;border:1.5px solid var(--card-border);border-radius:8px;background:var(--card);color:var(--fg);font-size:0.8rem;outline:none"><button class="fetch-btn" onclick="browseFolder()" style="flex:0;padding:10px 15px">Browse</button></div>
+        </div>
+        <div class="info-section">
+          <p><strong>Version:</strong> v2.1</p>
+          <p><strong>Last Updated:</strong> 2026-04-28 10:30</p>
+          <p><strong>Core:</strong> yt-dlp + ffmpeg</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="page">
+      <div class="brand"><h1>Re<em>Clip</em></h1></div>
+      <textarea id="urls" placeholder="Paste links here..." rows="2"></textarea>
+      <div class="controls">
+        <div class="pill-group" id="fmt-pill-group"><button class="pill active" data-format="video" onclick="setFormat('video')">MP4</button><button class="pill" data-format="audio" onclick="setFormat('audio')">MP3</button></div>
+        <button class="fetch-btn" id="goBtn" onclick="go()">Fetch</button>
+      </div>
+      <div id="cards"></div>
+    </div>
+  </div>
+
+  <script>
+    let audioContext = null;
+    const soundBuffers = {};
+    
+    async function createReverb() {
+      const length = audioContext.sampleRate * 2;
+      const buffer = audioContext.createBuffer(2, length, audioContext.sampleRate);
+      for (let i = 0; i < 2; i++) {
+        const data = buffer.getChannelData(i);
+        for (let j = 0; j < length; j++) {
+          data[j] = (Math.random() * 2 - 1) * Math.pow(1 - j / length, 2);
+        }
+      }
+      return buffer;
+    }
+
+    async function loadSounds() {
+      if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      ['button','start','finish','paste'].forEach(async name => {
+        try {
+          const res = await fetch(`/assets/sounds/${name}.mp3`);
+          soundBuffers[name] = await audioContext.decodeAudioData(await res.arrayBuffer());
+        } catch(e){}
+      });
+      soundBuffers['reverb'] = await createReverb();
+    }
+
+    function playSound(name, opts = {}) {
+      if (!soundBuffers[name]) return;
+      if (audioContext.state === 'suspended') audioContext.resume();
+      const s = audioContext.createBufferSource(); s.buffer = soundBuffers[name];
+      const g = audioContext.createGain();
+      const vol = localStorage.getItem('sfx-volume') || 1;
+      g.gain.value = (opts.volume !== undefined ? opts.volume : 1) * vol;
+      s.playbackRate.value = opts.pitch || 1;
+      
+      let target = audioContext.destination;
+      if (opts.reverb) {
+        const rev = audioContext.createConvolver();
+        rev.buffer = soundBuffers['reverb'];
+        const revGain = audioContext.createGain();
+        revGain.gain.value = opts.reverb;
+        s.connect(rev); rev.connect(revGain); revGain.connect(audioContext.destination);
+      }
+      
+      s.connect(g); g.connect(target);
+      s.start(audioContext.currentTime + (opts.delay || 0));
+    }
+
+    function playMagicChime() {
+      // Layer 1: Button SFX
+      playSound('button', { volume: 1 });
+      // Layer 2: Start SFX with pre-delay, higher pitch, and heavy reverb
+      playSound('start', { 
+        delay: 0.12, 
+        pitch: 1.6, 
+        volume: 1.8, 
+        reverb: 1.2 
+      });
+    }
+
+    // Global click listener for buttons
+    document.addEventListener('click', (e) => {
+      const btn = e.target.closest('button, .pill, .settings-trigger, .q-chip');
+      if (btn) {
+        if (btn.id === 'goBtn') return; // Handled separately by playMagicChime
+        if (btn.classList.contains('switch') || btn.closest('.switch')) return; // Handled by toggle
+        playSound('button');
+      }
+    });
+
+    loadSounds();
+
+    let currentFormat = 'video';
+    let cardData = [];
+
+    window.onload = async () => {
+      document.body.classList.remove('no-trans');
+      if (localStorage.getItem('dark-mode') === 'true') { document.body.classList.add('dark-mode'); document.getElementById('dark-toggle').checked = true; }
+      document.getElementById('sfx-volume').value = localStorage.getItem('sfx-volume') || 1;
+      const dir = localStorage.getItem('download-dir') || '~/Downloads';
+      document.getElementById('dl-dir').value = dir;
+      await fetch('/api/config/set_directory', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({directory: dir}) });
+      
+      const brand = document.querySelector('.brand h1');
+      let clickCount = 0, clickTimer = null;
+      brand.oncontextmenu = (e) => {
+        e.preventDefault(); clickCount++; playSound('button');
+        brand.classList.add('spring-active'); setTimeout(()=>brand.classList.remove('spring-active'), 200);
+        clearTimeout(clickTimer); clickTimer = setTimeout(()=>clickCount=0, 2000);
+        if (clickCount >= 4) {
+          clickCount = 0;
+          document.body.classList.add('blurred');
+          setTimeout(() => {
+            if (window.pywebview) window.pywebview.api.toggle_dev_mode_window(document.body.classList.contains('dark-mode'));
+            document.body.classList.add('dev-mode-active');
+            setTimeout(() => document.body.classList.remove('blurred'), 600);
+          }, 600);
+        }
+      };
+    };
+
+    window.onDevModeClosed = () => {
+      document.body.classList.add('blurred');
+      setTimeout(() => {
+        document.body.classList.remove('dev-mode-active');
+        setTimeout(() => document.body.classList.remove('blurred'), 600);
+      }, 600);
+    };
+
+    function toggleDarkMode() {
+      document.body.classList.toggle('dark-mode');
+      localStorage.setItem('dark-mode', document.body.classList.contains('dark-mode'));
+      playSound('button', { pitch: 0.5, volume: 0.8 });
+    }
+
+    function toggleSettings() { 
+      const modal = document.getElementById('settings-modal');
+      modal.classList.toggle('active'); 
+      document.body.classList.toggle('settings-active');
+      playSound('button', { pitch: 0.5, volume: 0.8 });
+    }
+
+    async function browseFolder() {
+      const dir = await pywebview.api.choose_directory();
+      if (dir) {
+        document.getElementById('dl-dir').value = dir;
+        localStorage.setItem('download-dir', dir);
+        await fetch('/api/config/set_directory', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({directory: dir}) });
+      }
+    }
+
+    function setFormat(fmt) {
+      if (currentFormat === fmt) return;
+      const group = document.getElementById('fmt-pill-group');
+      group.classList.remove('slide-left', 'slide-right');
+      void group.offsetWidth; // trigger reflow
+      group.classList.add(fmt === 'video' ? 'slide-left' : 'slide-right');
+      
+      currentFormat = fmt;
+      document.querySelectorAll('.pill').forEach(p => p.classList.toggle('active', p.dataset.format === fmt));
+      cardData.forEach((_, i) => renderCard(i));
+    }
+
+    async function go() {
+      const btn = document.getElementById('goBtn');
+      btn.classList.add('bouncing'); setTimeout(()=>btn.classList.remove('bouncing'), 600);
+      playMagicChime();
+      const raw = document.getElementById('urls').value;
+      const urls = [...new Set(raw.split(/[\s,]+/).filter(u => u.startsWith('http')))];
+      if (!urls.length) return;
+      btn.disabled = true; document.getElementById('cards').innerHTML = ''; cardData = [];
+      for (let url of urls) {
+        const idx = cardData.length; cardData.push({ url, status: 'loading' }); renderCard(idx);
+        try {
+          const res = await fetch('/api/info', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({url}) });
+          const data = await res.json();
+          if (data.error) cardData[idx].status = 'error';
+          else Object.assign(cardData[idx], { status: 'ready', ...data, selectedFormatId: data.formats?.[0]?.id });
+        } catch { cardData[idx].status = 'error'; }
+        renderCard(idx);
+      }
+      btn.disabled = false;
+    }
+
+    function renderCard(idx) {
+      const c = cardData[idx];
+      let el = document.getElementById(`card-${idx}`);
+      if (!el) { el = document.createElement('div'); el.id = `card-${idx}`; el.className = 'card'; document.getElementById('cards').appendChild(el); }
+      if (c.status === 'loading') { el.innerHTML = `<div class="card-thumb loading"></div><div class="card-body"><div style="height:12px;width:60%;background:var(--shimmer);margin-bottom:8px"></div><div style="height:10px;width:40%;background:var(--shimmer)"></div></div>`; return; }
+      if (c.status === 'error') { el.className = 'card card-error'; el.innerHTML = `<div class="card-body"><div class="card-title">Error fetching info</div><div class="card-meta">${c.url}</div></div>`; return; }
+      const isAudio = currentFormat === 'audio';
+      const thumb = isAudio ? '♫' : (c.thumbnail ? `<img src="${c.thumbnail}">` : '?');
+      const formats = (!isAudio && c.formats) ? c.formats.map(f => `<button class="q-chip ${f.id === c.selectedFormatId ? 'active' : ''}" onclick="cardData[${idx}].selectedFormatId='${f.id}';renderCard(${idx})">${f.label}</button>`).join('') : '';
+      let actions = '';
+      if (c.status === 'ready') actions = `<button class="card-dl-btn" onclick="download(${idx})">Download</button> ${formats}`;
+      else if (c.status === 'downloading') actions = `<div class="progress-bar-container"><div id="pb-${idx}" class="progress-bar" style="width:${c.progress || 0}%"></div></div><div style="font-size:0.6rem;color:var(--muted);text-align:right;margin-top:4px" id="st-${idx}">${c.speed || ''}</div>`;
+      else if (c.status === 'done') actions = `<button class="card-dl-btn done" onclick="reveal(${idx})">Reveal</button> <span class="card-meta">${c.filename}</span>`;
+      el.className = 'card' + (c.status === 'error' ? ' card-error' : '');
+      el.innerHTML = `<div class="card-thumb">${thumb}</div><div class="card-body"><div class="card-title">${c.status === 'error' ? 'Error fetching info' : c.title}</div><div class="card-meta">${c.status === 'error' ? c.url : c.uploader}</div><div class="card-actions">${actions}</div></div>`;
+    }
+
+    async function download(idx) {
+      const c = cardData[idx]; c.status = 'downloading'; renderCard(idx); playSound('start');
+      const resLabel = currentFormat === 'video' ? c.formats.find(f => f.id === c.selectedFormatId)?.label : null;
+      const res = await fetch('/api/download', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({url: c.url, format: currentFormat, format_id: c.selectedFormatId, title: c.title, resolution_label: resLabel}) });
+      const data = await res.json(); c.jobId = data.job_id;
+      const iv = setInterval(async () => {
+        const sRes = await fetch(`/api/status/${c.jobId}`); const sData = await sRes.json();
+        if (sData.status === 'done') { clearInterval(iv); playSound('finish'); Object.assign(c, {status: 'done', filename: sData.filename}); renderCard(idx); reveal(idx); }
+        else if (sData.status === 'error') { clearInterval(iv); c.status = 'error'; renderCard(idx); }
+        else { c.progress = sData.progress; c.speed = sData.speed; const pb = document.getElementById(`pb-${idx}`); if(pb) pb.style.width = c.progress+'%'; const st = document.getElementById(`st-${idx}`); if(st) st.textContent = c.speed; }
+      }, 1000);
+    }
+
+    async function reveal(idx) { await fetch(`/api/reveal/${cardData[idx].jobId}`, {method: 'POST'}); }
+
+    window.onoffline = () => { document.body.classList.add('blurred'); setTimeout(()=>document.getElementById('wifi-warning').classList.add('active'), 100); };
+    window.ononline = () => { document.getElementById('wifi-warning').classList.remove('active'); setTimeout(()=>document.body.classList.remove('blurred'), 800); };
+    document.getElementById('urls').onpaste = () => { playSound('paste'); const t = document.getElementById('urls'); t.classList.add('shake'); setTimeout(()=>t.classList.remove('shake'), 300); };
+  </script>
+</body>
+</html>

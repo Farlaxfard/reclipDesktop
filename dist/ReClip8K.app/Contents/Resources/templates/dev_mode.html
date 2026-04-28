@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Developer Settings</title>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f4f1eb;
+      --fg: #3a3a38;
+      --accent: #2d8a4e;
+      --muted: #9c9889;
+      --card: #fff;
+      --card-border: #e2ded6;
+      --radius: 14px;
+    }
+
+    body.dark-mode {
+      --bg: #1a1a18;
+      --fg: #f4f1eb;
+      --accent: #3ab167;
+      --muted: #7c7869;
+      --card: #262624;
+      --card-border: #3a3a38;
+    }
+
+    body {
+      font-family: 'DM Mono', monospace;
+      background: var(--bg);
+      color: var(--fg);
+      margin: 0;
+      padding: 20px;
+      user-select: none;
+      -webkit-app-region: drag;
+    }
+
+    h2 {
+      font-family: 'Instrument Serif', serif;
+      font-size: 2rem;
+      margin-bottom: 20px;
+      font-weight: 400;
+    }
+
+    .setting-item {
+      margin-bottom: 20px;
+      padding: 15px;
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius);
+      -webkit-app-region: no-drag;
+    }
+
+    .setting-label {
+      display: block;
+      font-size: 0.9rem;
+      font-weight: 500;
+      margin-bottom: 5px;
+    }
+
+    .setting-desc {
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+
+    button {
+      background: var(--accent);
+      color: white;
+      border: none;
+      padding: 8px 15px;
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.2s;
+      -webkit-app-region: no-drag;
+    }
+
+    button:active {
+      transform: scale(0.92);
+    }
+
+    button:hover {
+      opacity: 0.9;
+    }
+
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 40px;
+      height: 24px;
+    }
+
+    .switch input { opacity: 0; width: 0; height: 0; }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-color: var(--card-border);
+      transition: .3s cubic-bezier(0.4, 0, 0.2, 1);
+      border-radius: 24px;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 18px; width: 18px;
+      left: 3px; bottom: 3px;
+      background-color: white;
+      transition: .3s cubic-bezier(0.4, 0, 0.2, 1);
+      border-radius: 50%;
+    }
+
+    input:checked + .slider { background-color: var(--accent); }
+    input:checked + .slider:before { transform: translateX(16px); }
+
+  </style>
+</head>
+<body class="{{ 'dark-mode' if is_dark else '' }}">
+  <h2>Dev Tools</h2>
+  
+  <div class="setting-item">
+    <div class="setting-label">Developer Console</div>
+    <div class="setting-desc">Open the web inspection tools</div>
+    <button onclick="openDevTools()">Open Inspector</button>
+  </div>
+
+  <div class="setting-item">
+    <div class="setting-label">Debug Logging</div>
+    <div class="setting-desc">Enable verbose logging in console</div>
+    <label class="switch">
+      <input type="checkbox" id="debug-logging" onchange="toggleDebug()">
+      <span class="slider"></span>
+    </label>
+  </div>
+
+  <div class="setting-item">
+    <div class="setting-label">Testing Assets</div>
+    <div class="setting-desc">Quickly copy a sample URL for testing</div>
+    <button onclick="copyTestLink()">Copy Test Link</button>
+  </div>
+
+  <script>
+    // Audio Engine
+    let audioContext = null;
+    const soundBuffers = {};
+    const sfx = ['button'];
+
+    function initAudio() {
+      if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioContext.state === 'suspended') {
+        audioContext.resume();
+      }
+    }
+
+    async function loadSounds() {
+      for (const name of sfx) {
+        try {
+          const response = await fetch(`/assets/sounds/${name}.mp3`);
+          if (!response.ok) continue;
+          const arrayBuffer = await response.arrayBuffer();
+          if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
+          soundBuffers[name] = await audioContext.decodeAudioData(arrayBuffer);
+        } catch (e) {
+          console.error(`Failed to load sound: ${name}`, e);
+        }
+      }
+    }
+    loadSounds();
+
+    function getSfxVolume() {
+      return parseFloat(localStorage.getItem('sfx-volume') || '1.0');
+    }
+
+    function playSound(name) {
+      initAudio();
+      let bufferName = 'button';
+      let playbackRate = (name === 'toggle') ? 0.6 : 1.0;
+
+      if (!soundBuffers[bufferName]) return;
+      
+      const source = audioContext.createBufferSource();
+      source.buffer = soundBuffers[bufferName];
+      source.playbackRate.value = playbackRate;
+      
+      const gainNode = audioContext.createGain();
+      const vol = getSfxVolume();
+      gainNode.gain.value = vol * 0.5;
+      
+      source.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      source.start(0);
+    }
+
+    document.addEventListener('click', (e) => {
+      if (e.target.closest('button')) playSound('button');
+    });
+
+    document.addEventListener('change', (e) => {
+      if (e.target.type === 'checkbox') playSound('toggle');
+    });
+
+    function copyTestLink() {
+      const url = 'https://www.youtube.com/watch?v=n5cW4FpGvhI';
+      navigator.clipboard.writeText(url).then(() => {
+        const btn = event.target;
+        const originalText = btn.textContent;
+        btn.textContent = 'Copied!';
+        setTimeout(() => { btn.textContent = originalText; }, 2000);
+      });
+    }
+
+    function openDevTools() {
+      window.pywebview.api.open_dev_tools();
+    }
+
+    function toggleDebug() {
+      const enabled = document.getElementById('debug-logging').checked;
+      localStorage.setItem('dev-debug-logging', enabled);
+    }
+
+    // Listen for dark mode changes from main window
+    window.addEventListener('storage', (e) => {
+      if (e.key === 'dark-mode') {
+        if (e.newValue === 'true') {
+          document.body.classList.add('dark-mode');
+        } else {
+          document.body.classList.remove('dark-mode');
+        }
+      }
+    });
+
+    window.onload = () => {
+      document.getElementById('debug-logging').checked = localStorage.getItem('dev-debug-logging') === 'true';
+    };
+  </script>
+</body>
+</html>
