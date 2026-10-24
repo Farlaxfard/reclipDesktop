@@ -4,6 +4,9 @@ import sys
 import shutil
 import subprocess
 
+# Set PyInstaller config/cache directory to a writable location if not provided
+os.environ.setdefault("PYINSTALLER_CONFIG_DIR", "/tmp/pyinstaller")
+
 # Define paths for assets, templates, and static files
 base_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -40,10 +43,16 @@ binaries = [
     (ffmpeg_path, "."),
 ]
 
+dist_dir = os.path.join(base_dir, "dist")
+build_dir = os.path.join(base_dir, "build")
+
 # Common PyInstaller arguments
 args = [
     os.path.join(base_dir, "main.py"),
     "--name=ReClip8K",
+    f"--distpath={dist_dir}",
+    f"--workpath={build_dir}",
+    f"--specpath={base_dir}",
     "--windowed", # No console window
     "--noconfirm", # Overwrite output directory without asking
     "--clean",     # Clean PyInstaller cache before building
@@ -91,7 +100,10 @@ if sys.platform == "darwin":
     dist_path = os.path.join(base_dir, 'dist')
     print(f"Your macOS app is located at: {os.path.join(dist_path, 'ReClip8K.app')}")
     # The actual folder containing the app is `dist`
-    subprocess.run(["open", dist_path])
+    try:
+        subprocess.run(["open", dist_path], check=False)
+    except Exception:
+        pass
 else:
     dist_path = os.path.join(base_dir, 'dist')
     print(f"Your executable is located at: {dist_path}")

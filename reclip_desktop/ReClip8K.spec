@@ -2,10 +2,10 @@
 
 
 a = Analysis(
-    ['/Users/fardeen/reclip/reclip_desktop/main.py'],
+    ['/Users/fardeen/Documents/GitHub/reclipDesktop/reclip_desktop/main.py'],
     pathex=[],
     binaries=[('/opt/homebrew/bin/ffmpeg', '.')],
-    datas=[('/Users/fardeen/reclip/reclip_desktop/templates', 'templates'), ('/Users/fardeen/reclip/reclip_desktop/static', 'static'), ('/Users/fardeen/reclip/reclip_desktop/assets', 'assets'), ('/Users/fardeen/reclip/reclip_desktop/assets/sounds', 'assets/sounds')],
+    datas=[('/Users/fardeen/Documents/GitHub/reclipDesktop/reclip_desktop/templates', 'templates'), ('/Users/fardeen/Documents/GitHub/reclipDesktop/reclip_desktop/static', 'static'), ('/Users/fardeen/Documents/GitHub/reclipDesktop/reclip_desktop/assets', 'assets'), ('/Users/fardeen/Documents/GitHub/reclipDesktop/reclip_desktop/assets/sounds', 'assets/sounds')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
@@ -32,7 +32,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=['/Users/fardeen/reclip/reclip_desktop/static/icon.icns'],
+    icon=['/Users/fardeen/Documents/GitHub/reclipDesktop/reclip_desktop/static/icon.icns'],
 )
 coll = COLLECT(
     exe,
@@ -46,6 +46,6 @@ coll = COLLECT(
 app = BUNDLE(
     coll,
     name='ReClip8K.app',
-    icon='/Users/fardeen/reclip/reclip_desktop/static/icon.icns',
+    icon='/Users/fardeen/Documents/GitHub/reclipDesktop/reclip_desktop/static/icon.icns',
     bundle_identifier='com.reclip.8k',
 )

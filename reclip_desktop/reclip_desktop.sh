@@ -20,6 +20,6 @@ echo "Installing/updating dependencies..."
 pip install -q -r requirements.txt
 
 echo ""
-echo "Launching ReClip 4K..."
+echo "Launching ReClip 8K..."
 echo ""
 python3 main.py

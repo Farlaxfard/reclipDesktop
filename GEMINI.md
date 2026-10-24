@@ -196,3 +196,13 @@ Its core philosophy is "simple utility": a single-file backend that bridges the 
 - **Change:** Ensured consistent button, start, and finish SFX across the application.
 - **Change:** Incremented application version to `v2.1` and updated timestamp to `2026-04-28 10:30`.
 - **Intention:** Honoring the user's preference for the original aesthetic while delivering requested high-fidelity interactions and functional improvements.
+
+### 2026-10-23: Repository Cleanup & Project Organization
+- **Change:** Removed obsolete root files and directories (`app.py`, `reclip.sh`, legacy `static/` folder with redundant icon assets and cache, root `build/` artifact directory).
+- **Change:** Cleaned up unused legacy assets in `reclip_desktop/assets/` (`preview-mp3.png`, `preview.mp4`) and deleted leftover 30MB broken download fragment (`reclip_desktop/media downloads/*.part`).
+- **Change:** Preserved high-resolution `icon.png` and `icon.svg` inside `reclip_desktop/static/` for complete multi-platform build support.
+- **Change:** Created a comprehensive `.gitignore` preventing build artifacts, compiled Python bytecode, OS metadata (`.DS_Store`), media download caches, and local configurations from being tracked.
+- **Change:** Synchronized root `requirements.txt` with `reclip_desktop/requirements.txt` and updated root `README.md` to clearly detail project architecture, prerequisites, setup, and build workflows.
+- **Change:** Updated launcher script (`reclip_desktop.sh`) branding to "ReClip 8K".
+- **Change:** Incremented application version to `v2.2` and updated timestamp to `2026-10-23 16:50`.
+- **Intention:** Restoring a clean, professional, and organized project structure, eliminating clutter, and establishing robust repository hygiene.
